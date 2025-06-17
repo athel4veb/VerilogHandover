@@ -1,0 +1,852 @@
+{
+  "name": "pushToAi",
+  "nodes": [
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -652,
+        445
+      ],
+      "id": "8d3a7dcd-469e-4151-b7cd-532070c959ec",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Jhb6aj2UtpZZu03f",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {
+          "responseFormat": "json_object"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1520,
+        400
+      ],
+      "id": "db71eed3-3dd2-4f45-b1d4-170dfae8ac4d",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "Jhb6aj2UtpZZu03f",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/athadmin/valiai2/out/{{ $('Webhook').item.json.body.targName }}_strat/{{ $('toRealJson1').item.binary.data.fileName }}_strategy_init.json",
+        "options": {
+          "dataPropertyName": "fileData"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        840,
+        180
+      ],
+      "id": "2587986a-6bb7-495a-9513-1a66af3235fa",
+      "name": "Read base version",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=This is a summary of the design-under-test (DUT):\n{{ $('putToUsable').item.json.data }}\n\nBelow is the list of generated testcases intended to verify the DUT:\n{{ $json.data }}\n\nPlease analyze:\n1. Are all signal conditions, edge cases, and error paths covered?\n2. Are there redundant or trivial testcases?\n3. Are any signal ranges or control conditions missing?\n4. Could anything cause failure in real-world RTL simulation that’s not tested?\n\nReturn JSON structured as:\n{\n  \"is_coverage_sufficient\": true/false,\n  \"missing_coverage\": [...],\n  \"redundant_cases\": [...],\n  \"recommendations\": [...]\n}",
+        "options": {
+          "systemMessage": "You are a verification engineer assistant reviewing a generated RTL test strategy. Your job is to:\n\n1. Analyze the list of testcases and identify any **missing scenarios**, including:\n   - Edge cases (e.g. boundary values, zero, max/min)\n   - Invalid inputs (e.g. non-numeric, wrong signal states)\n   - Unexpected behavior triggers (e.g. reset during operation, race conditions)\n   - Timing/control issues (e.g. glitches, async resets, simultaneous triggers)\n\n2. Suggest **additional testcases** if needed, using the same format.\n\n3. If no additions are needed, clearly reply with `\"coverage_sufficient\": true`.\n\n4. If additions are needed, reply with:\n```json\n{\n  \"coverage_sufficient\": false,\n  \"missing_testcases\": [ ... ]\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        180
+      ],
+      "id": "2bf4c2a5-4cd3-4c1f-b822-6094654f900a",
+      "name": "Verify Info & add more requirement"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.is_coverage_sufficient }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "5e676e85-4dc7-48d9-93dc-638669ca1263"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "allGood"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "06c064fa-0f0b-422a-9649-738dcaeb64a1",
+                    "leftValue": "={{ $json.is_coverage_sufficient }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "needFineTune"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2000,
+        520
+      ],
+      "id": "677b74c2-9cce-41c1-9834-954a8ccb0220",
+      "name": "Check if coverage is enough"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/athadmin/valiai2/out/{{ $('Webhook').item.json.body.targName }}_strat/{{ $('toRealJson1').item.binary.data.fileName }}_strategy_final.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        800
+      ],
+      "id": "e21f4b7e-2bbb-4c18-a35c-6faae65588fb",
+      "name": "Save Final Version"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the netlist:\n{{ $json.data }}",
+        "options": {
+          "systemMessage": "You are acting as an AI for automated test case generation for digital logic designs.\nThe following JSON is the netlist structure of a Verilog design extracted using Yosys. Your goal is to analyze the `top_module` and all its ports (inputs, outputs, inouts) and generate a comprehensive test strategy. This strategy must include:\n1. All standard use-case scenarios (happy paths).\n2. All failure modes (e.g., invalid inputs, reset during active logic).\n3. Edge cases (boundary values, simultaneous triggers, race conditions).\n\nYour output should be in the following strict JSON format:\n{\n  \"testcases\": [\n    {\n      \"name\": \"basic_reset\",\n      \"description\": \"Reset the core and verify all outputs are zeroed\",\n      \"inputs\": {\n        \"resetn\": 0,\n        \"clk\": \"toggle\"\n      },\n      \"expected_outputs\": {\n        \"trap\": 0\n      }\n    },\n    {\n      \"name\": \"memory_write\",\n      ...\n    }\n  ]\n}\n\nThe ports may include memory interfaces (`mem_valid`, `mem_addr`, `mem_wstrb`), control signals (`clk`, `resetn`), IRQ, PCPI (coprocessor), and more.\nPlease keep your output strictly in the above JSON format, suitable for saving into `test_strategy_base.json`."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        225
+      ],
+      "id": "8dfcd740-799e-4567-b937-2da8cbb86092",
+      "name": "gen test strat"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "initWorkflow1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2720,
+        350
+      ],
+      "id": "a562cc24-b669-409f-bd89-22ef0685f81b",
+      "name": "Webhook",
+      "webhookId": "3bc97614-c5d7-4979-bc52-cc2197a73c88"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/listFileIntoJson.py \"/home/athadmin/valiai2/out/{{ $json.body.targName }}_split\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -2500,
+        350
+      ],
+      "id": "38a061d9-c091-4840-a3d9-6a2cb18b736e",
+      "name": "Execute Command"
+    },
+    {
+      "parameters": {
+        "jsCode": "let obj = JSON.parse($input.first().json.stdout);\n\nreturn obj[\"files\"].map(path => ({\n  json: { file: path }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2280,
+        350
+      ],
+      "id": "48e6e329-d8a8-47ee-8d5d-348fc22e9770",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{$('loopFileList').item.json[\"file\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        220
+      ],
+      "id": "1c5bc762-223d-4c27-9906-0e98595d022b",
+      "name": "read1File",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let obj = JSON.parse($input.first().json.output);\nreturn obj;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -364,
+        100
+      ],
+      "id": "7c3e7118-a6a2-48cd-b98e-c8b3579b97f0",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "binaryPropertyName": "=data",
+        "options": {
+          "encoding": "utf8",
+          "fileName": "={{$('read1File').item.binary.data.fileName.split('.')[0]}}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        -144,
+        100
+      ],
+      "id": "ff25dcbc-3c76-4d42-9ea8-e56b3f9a1c71",
+      "name": "toRealJson1"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/create_folder_if_missing.py \"/home/athadmin/valiai2/out/{{ $('Webhook').item.json.body.targName }}_strat\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -2060,
+        425
+      ],
+      "id": "99874526-4f4d-411b-bf15-cc8037ccdf67",
+      "name": "createFolderIfMissing",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        -1840,
+        320
+      ],
+      "id": "888bb4cf-4fe6-45ad-b909-fe7b6682a7a8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/athadmin/valiai2/out/{{ $('Webhook').item.json.body.targName }}_strat/{{ $('toRealJson1').item.binary.data.fileName }}_strategy_init.json",
+        "dataPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        680,
+        20
+      ],
+      "id": "0ec3aa99-6a2d-4a55-ac8c-75972b302d2e",
+      "name": "writeBaseVer"
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1220,
+        180
+      ],
+      "id": "09209432-846b-419a-8dad-0dbc546c29f8",
+      "name": "Convert to File"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        220
+      ],
+      "id": "ae44a63c-378e-4e92-bdec-e0f320cb3ba0",
+      "name": "putToUsable"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn JSON.parse($input.first().json.output)"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1820,
+        180
+      ],
+      "id": "79201ac8-26c7-422b-8e90-558cb8187bfa",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        460,
+        20
+      ],
+      "id": "03c8a6d1-a78d-4984-9eb6-8fa56e626d95",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ca89c3f3-f9e4-4fdd-b629-1092e5003772",
+              "leftValue": "={{ $json.stdout.toLowerCase() }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        280,
+        320
+      ],
+      "id": "140eb9f7-e58b-410f-896e-7b2bacd2cab5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/checkFileExist.py /home/athadmin/valiai2/out/{{ $('Webhook').item.json.body.targName }}_strat/{{ $('toRealJson1').item.binary.data.fileName }}_strategy_init.json"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        60,
+        320
+      ],
+      "id": "a414e845-94d9-4215-b9fc-191dbfbbc561",
+      "name": "checkFileExists"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1620,
+        280
+      ],
+      "id": "2d5d9726-0e17-4124-aa04-6c3eca9aad74",
+      "name": "loopFileList"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "713e17b8-e438-4765-aa0e-65f27d819be7",
+              "leftValue": "={{$('internalLoopCont')[\"iteration\"]}}",
+              "rightValue": "={{ $('internalLoopCont')[\"maxIterations\"] }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        940,
+        600
+      ],
+      "id": "7682a703-39cb-4491-baa5-070305f7cf8d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"iteration\": 0,\n  \"maxIterations\": 10\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1340,
+        400
+      ],
+      "id": "9aa8dea0-1533-410c-9646-f99bd5fde859",
+      "name": "internalLoopCont"
+    },
+    {
+      "parameters": {
+        "jsCode": "const loopData = $('internalLoopCont').item.json;  // get current item data\n\n// Safely increment\nloopData.iteration += 1;\nreturn null"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        580
+      ],
+      "id": "0811ee54-b3b6-432b-85e8-d9396b022526",
+      "name": "Code3"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "asmveb.online",
+            "x-real-ip": "88.99.37.153",
+            "x-forwarded-for": "88.99.37.153",
+            "x-forwarded-proto": "https",
+            "connection": "upgrade",
+            "content-length": "24",
+            "accept": "application/json,text/html,application/xhtml+xml,application/xml,text/*;q=0.9, image/*;q=0.8, */*;q=0.7",
+            "content-type": "application/json",
+            "user-agent": "axios/1.8.3",
+            "accept-encoding": "gzip, compress, deflate, br"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "targName": "picorv32x"
+          },
+          "webhookUrl": "https://asmveb.online:5678/webhook-test/initWorkflow1",
+          "executionMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "gen test strat",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Verify Info & add more requirement",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read base version": {
+      "main": [
+        [
+          {
+            "node": "Convert to File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Info & add more requirement": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if coverage is enough": {
+      "main": [
+        [
+          {
+            "node": "Save Final Version",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gen test strat": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "createFolderIfMissing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Final Version": {
+      "main": [
+        [
+          {
+            "node": "loopFileList",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read1File": {
+      "main": [
+        [
+          {
+            "node": "putToUsable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "toRealJson1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "toRealJson1": {
+      "main": [
+        [
+          {
+            "node": "checkFileExists",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "loopFileList",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "createFolderIfMissing": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "writeBaseVer": {
+      "main": [
+        [
+          {
+            "node": "Read base version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to File": {
+      "main": [
+        [
+          {
+            "node": "Verify Info & add more requirement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "putToUsable": {
+      "main": [
+        [
+          {
+            "node": "gen test strat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Check if coverage is enough",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "writeBaseVer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Read base version",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "checkFileExists": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "loopFileList": {
+      "main": [
+        [],
+        [
+          {
+            "node": "internalLoopCont",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "loopFileList",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "internalLoopCont": {
+      "main": [
+        [
+          {
+            "node": "read1File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "gen test strat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "be57476a-2629-415a-94c0-b36acfa15c68",
+  "meta": {
+    "instanceId": "c59f07a97c8c1ec7e97e1287d93d3e6945217603bfd66ec36205300f47677c79"
+  },
+  "id": "DhM5vo9Eh9v1K9uB",
+  "tags": []
+}

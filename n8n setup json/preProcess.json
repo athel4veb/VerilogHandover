@@ -1,0 +1,267 @@
+{
+  "name": "preProcess",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "userSubmitZip",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        -80
+      ],
+      "id": "0b28c8fc-a811-4745-8490-aecd0d3f95d7",
+      "name": "listenPost1",
+      "webhookId": "e72d5b4c-ad96-4776-b8d7-20c1188770cb"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/athadmin/valiai2/temps/{{$binary.data.fileName}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -80
+      ],
+      "id": "9047c04b-618a-4b1f-a17e-4dc08ef9a952",
+      "name": "saveZip"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/create_folder_if_missing.py \"/home/athadmin/valiai2/out/{{$binary.data.fileName.split('.')[0]}}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        -80
+      ],
+      "id": "6ab31f6d-3444-46d5-a939-e521ae6502fb",
+      "name": "createFolderIfMissing",
+      "alwaysOutputData": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "command": "=unzip -o \"{{ $('saveZip').item.json.fileName }}\" -d \"/home/athadmin/valiai2/out\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "6da83c9c-fe1c-43d2-9025-d1c081d5b53b",
+      "name": "extractCorrectly",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "command": "=yosys -p \"read_verilog /home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}/*.v; hierarchy -check -top picorv32; proc; write_json /home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}_netlist.json\"\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        840,
+        -80
+      ],
+      "id": "562a40fa-1475-42e9-8cc1-77e9133a6bd3",
+      "name": "exportToNetList"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/detect_top_module.py --source /home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}_netlist.json --output /home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}_topmodule.json"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        -80
+      ],
+      "id": "af381e56-72cb-4590-9a38-cf317814d9de",
+      "name": "detectTopModules"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/clean_verilog_directory.py \"/home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}\""
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        620,
+        -80
+      ],
+      "id": "785267ea-f647-4ceb-845d-65cd4d67aeff",
+      "name": "keepOnlyVerilog"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst item = $input.first();\nreturn [item]; // Now it retains BOTH json and binary"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        140,
+        -80
+      ],
+      "id": "f6f9ab75-2714-4ace-9df3-77b4ae2df843",
+      "name": "makeAJson",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "command": "=python3 /home/athadmin/valiai2/pyscript/slice_netlist_json.py --source \"/home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}_netlist.json\" --dest \"/home/athadmin/valiai2/out/{{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}_split\" --chunk_size 100\n"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        -80
+      ],
+      "id": "02d61c8b-9072-46bd-a1f9-4ae5e8f80e38",
+      "name": "splitJson"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://asmveb.online/webhook/initWorkflow1",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "targName",
+              "value": "={{$('saveZip').item.json.fileName.split('.')[0].replace(/.*[\\\\/]/, '')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1500,
+        -80
+      ],
+      "id": "c568fad7-f52d-43d9-87f8-d33d04ab753c",
+      "name": "callPushToAi"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "listenPost1": {
+      "main": [
+        [
+          {
+            "node": "saveZip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "saveZip": {
+      "main": [
+        [
+          {
+            "node": "createFolderIfMissing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "createFolderIfMissing": {
+      "main": [
+        [
+          {
+            "node": "makeAJson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extractCorrectly": {
+      "main": [
+        [
+          {
+            "node": "keepOnlyVerilog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "exportToNetList": {
+      "main": [
+        [
+          {
+            "node": "detectTopModules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "detectTopModules": {
+      "main": [
+        [
+          {
+            "node": "splitJson",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "keepOnlyVerilog": {
+      "main": [
+        [
+          {
+            "node": "exportToNetList",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "makeAJson": {
+      "main": [
+        [
+          {
+            "node": "extractCorrectly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "splitJson": {
+      "main": [
+        [
+          {
+            "node": "callPushToAi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3ed0df95-ead4-4a49-9017-de9a67fd2110",
+  "meta": {
+    "instanceId": "c59f07a97c8c1ec7e97e1287d93d3e6945217603bfd66ec36205300f47677c79"
+  },
+  "id": "URCwdQidNM3fvmkD",
+  "tags": []
+}
